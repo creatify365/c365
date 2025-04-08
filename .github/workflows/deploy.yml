@@ -1,49 +1,38 @@
-name: Deployment
+name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches:
+      - main # Or your main development branch
 
 jobs:
-  vercel:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x]
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.1.7
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4.0.3
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
         with:
-          node-version: ${{ matrix.node-version }}
+          version: 10
 
-      - uses: pnpm/action-setup@v2.4.1
-        name: Install pnpm
-        id: pnpm-install
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          version: 7
-          run_install: false
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@v4.0.2
-        name: Setup pnpm cache
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 22
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install
 
-      - name: Build
-        run: pnpm build
+      - name: Build Next.js app for export
+        run: pnpm run build && pnpm run export
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: out # The default output folder for 'next export'
+          token: ${{ secrets.GITHUB_TOKEN }}
